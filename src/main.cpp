@@ -2,12 +2,8 @@
 #include <FirebaseESP32.h>
 #include <SoftwareSerial.h>
 #include <WiFi.h>
+#include "creds.h"
 
-#define FIREBASE_HOST "test-fyp-5c283-default-rtdb.firebaseio.com"
-#define FIREBASE_AUTH "IjH4uhAUxUVnrGNgPxFaF5nPSIpXrOcLAqwXGACc"
-
-#define WIFI_SSID "test"
-#define WIFI_PASSWORD "12345678"
 /*
 dPin  Label   Function
  2    D2      Wifi status LED
