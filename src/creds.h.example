@@ -1,0 +1,4 @@
+#define FIREBASE_HOST "link to firbase rtdb"
+#define FIREBASE_AUTH "auth key for firebase rtdb"
+#define WIFI_SSID "wifi name"
+#define WIFI_PASSWORD "wifi password"
