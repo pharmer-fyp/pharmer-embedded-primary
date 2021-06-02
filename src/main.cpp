@@ -2,6 +2,7 @@
 #include <FirebaseESP32.h>
 #include <SoftwareSerial.h>
 #include <WiFi.h>
+
 #include "creds.h"
 
 /*
@@ -13,23 +14,22 @@ dPin  Label   Function
 17    TX2     HC05tx
 18    D18     r0rx
 19    D19     r0tx
-21    D21     
+21    D21
 22    D22     r1rx
 23    D23     r1tx
-25    D25     
+25    D25
 26    D26     r2rx
 27    D27     r2tx
 32    D32     r3rx
 33    D33     r3tx
 */
 
-#define N             1
+#define N 2
 #define MAX_DEFINED_N 4
-#define WIFILED       2
-#define BTLED         4
-#define BTSTATE       13
+#define WIFILED 2
 
-String stringRack[N];
+String stringRackReference[N];
+String stringRackSensor[N];
 
 #if N >= 1
 SoftwareSerial serialRack0(18, 19);
@@ -58,8 +58,9 @@ void statusLoop(void*);
 void startWifi();
 void startFirebase();
 void updateFirebase();
+void readFirebase();
 void getSensorReadings();
-void updateRacks(String);
+void putReferenceData();
 SoftwareSerial& serialRack(int);
 
 void setup() {
@@ -69,9 +70,6 @@ void setup() {
     serialRack(i).begin(9600);
   }
   pinMode(WIFILED, OUTPUT);
-  pinMode(BTLED, OUTPUT);
-  pinMode(BTSTATE, INPUT);
-  BTSerial.begin(9600);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
 
@@ -81,6 +79,7 @@ void setup() {
   // connect to firebase
   startFirebase();
   delay(500);
+
   xTaskCreatePinnedToCore(
       statusLoop,     /* Task function. */
       "statusLoop_H", /* name of task. */
@@ -91,65 +90,78 @@ void setup() {
       1);             /* pin task to core 1 */
   delay(1500);
   xTaskCreatePinnedToCore(
-      mainLoop,       /* Task function. */
-      "mainLoop",     /* name of task. */
-      10000,          /* Stack size of task */
-      NULL,           /* parameter of the task */
-      1,              /* priority of the task */
-      &mainLoop_H,    /* Task handle to keep track of created task */
-      0);             /* pin task to core 0 */
+      mainLoop,    /* Task function. */
+      "mainLoop",  /* name of task. */
+      10000,       /* Stack size of task */
+      NULL,        /* parameter of the task */
+      1,           /* priority of the task */
+      &mainLoop_H, /* Task handle to keep track of created task */
+      0);          /* pin task to core 0 */
 }
 
-void mainLoop(void* pvParameters){
+void mainLoop(void* pvParameters) {
   while (1) {
+    readFirebase();
+    putReferenceData();
     getSensorReadings();
     updateFirebase();
-    delay(1000);
-    if (BTSerial.available()) {
-      updateRacks(BTSerial.readStringUntil('\n'));
-    }
+    delay(5000);
   }
 }
 
 void statusLoop(void* pvParameters) {
   while (1) {
     delay(500);
-    if(WiFi.status() == WL_CONNECTED){
+    if (WiFi.status() == WL_CONNECTED) {
       digitalWrite(WIFILED, HIGH);
     } else {
       digitalWrite(WIFILED, LOW);
-    }
-    if(digitalRead(BTSTATE) == 1){
-      digitalWrite(BTLED, HIGH);
-    } else {
-      digitalWrite(BTLED, LOW);
+      Serial.println("Waiting to reconnect to wifi");
+      delay(5000);
+      startWifi();
     }
   }
 }
 
 void loop() {}
 
-void updateFirebase() {
-  if (WiFi.status() != WL_CONNECTED) return;
+void readFirebase() {
   for (int i = 0; i < N; i++) {
-    Firebase.setString(database, "/rack" + String(i) + "/status", stringRack[i]);
+    if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
+      stringRackReference[i] = database.jsonString();
+    } else {
+      stringRackReference[i] = "NULL";
+    }
+  }
+}
+
+void putReferenceData() {
+  for (int i = 0; i < N; i++) {
+    serialRack(i).print(stringRackReference[i]);
   }
 }
 
 void getSensorReadings() {
   for (int i = 0; i < N; i++) {
     if (serialRack(i).available()) {
-      stringRack[i] = serialRack(i).readStringUntil('\n');
-      Serial.println(stringRack[i]);
+      stringRackSensor[i] = serialRack(i).readStringUntil('\n');
+      Serial.println(stringRackSensor[i]);
     }
   }
 }
 
-void updateRacks(String c) {
-  int rackNo = (int)c[0];
-  String cmd = c.substring(1);
-  serialRack(rackNo).print(cmd);
+void updateFirebase() {
+  FirebaseJson* tmp;
+  if (WiFi.status() != WL_CONNECTED) return;
+  for (int i = 0; i < N; i++) {
+    tmp = new FirebaseJson;
+    tmp->setJsonData(stringRackSensor[i]);
+    Firebase.setJSON(database, "/TestSensor/Rack: " + String(i + 1), *tmp);
+    delete tmp;
+  }
 }
+
+/**************************************************************/
 
 SoftwareSerial& serialRack(int x) {
   switch (x) {
