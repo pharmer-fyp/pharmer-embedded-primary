@@ -129,9 +129,15 @@ void readFirebase() {
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
+      if( stringRackReference[i].indexOf("newval") >= 0){
+        Firebase.setString(database, "/Reference/Rack: " + String(i + 1) + "/isNew","oldval");
+      } else {
+        stringRackReference[i] = "NULL";
+      }
     } else {
       stringRackReference[i] = "NULL";
     }
+    delay(500);
   }
 }
 
