@@ -129,7 +129,6 @@ void readFirebase() {
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
-      if(!stringRackReference[i]);
     } else {
       stringRackReference[i] = "NULL";
     }
