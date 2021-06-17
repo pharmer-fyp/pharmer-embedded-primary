@@ -8,10 +8,8 @@
 /*
 dPin  Label   Function
  2    D2      Wifi status LED
- 4    D4      Bluetooth status LED
-13    D13     HC05 State
-16    RX2     HC05rx
-17    TX2     HC05tx
+16    RX2     r4rx
+17    TX2     r4tx
 18    D18     r0rx
 19    D19     r0tx
 21    D21
@@ -25,7 +23,7 @@ dPin  Label   Function
 */
 
 #define N 2
-#define MAX_DEFINED_N 4
+#define MAX_DEFINED_N 5
 #define WIFILED 2
 
 String stringRackReference[N];
@@ -43,12 +41,14 @@ SoftwareSerial serialRack2(26, 27);
 #if N >= 4
 SoftwareSerial serialRack3(32, 33);
 #endif
+#if N >= 5
+SoftwareSerial serialRack4(16, 17);
+#endif
 
 #if N > MAX_DEFINED_N || N == 0
 #error Bad N value
 #endif
 
-SoftwareSerial BTSerial(16, 17);
 FirebaseData database;
 TaskHandle_t mainLoop_H;
 TaskHandle_t statusLoop_H;
@@ -129,6 +129,7 @@ void readFirebase() {
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
+      if(!stringRackReference[i]);
     } else {
       stringRackReference[i] = "NULL";
     }
@@ -137,15 +138,16 @@ void readFirebase() {
 
 void putReferenceData() {
   for (int i = 0; i < N; i++) {
-    serialRack(i).print(stringRackReference[i]);
+    if (stringRackReference[i] != "NULL") {
+      serialRack(i).print(stringRackReference[i]);
+    }
   }
 }
 
 void getSensorReadings() {
   for (int i = 0; i < N; i++) {
     if (serialRack(i).available()) {
-      stringRackSensor[i] = serialRack(i).readStringUntil('\n');
-      Serial.println(stringRackSensor[i]);
+      stringRackSensor[i] = serialRack(i).readString();
     }
   }
 }
@@ -156,7 +158,7 @@ void updateFirebase() {
   for (int i = 0; i < N; i++) {
     tmp = new FirebaseJson;
     tmp->setJsonData(stringRackSensor[i]);
-    Firebase.setJSON(database, "/TestSensor/Rack: " + String(i + 1), *tmp);
+    Firebase.setJSON(database, "/Sensor/Rack: " + String(i + 1), *tmp);
     delete tmp;
   }
 }
@@ -180,6 +182,10 @@ SoftwareSerial& serialRack(int x) {
 #if N >= 4
     case 3:
       return serialRack3;
+#endif
+#if N >= 5
+    case 4:
+      return serialRack4;
 #endif
     default:
       break;
