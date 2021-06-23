@@ -131,6 +131,8 @@ void readFirebase() {
       stringRackReference[i] = database.jsonString();
       if( stringRackReference[i].indexOf("newval") >= 0){
         Firebase.setString(database, "/Reference/Rack: " + String(i + 1) + "/isNew","oldval");
+      } else if (stringRackReference[i].indexOf("deleted") >= 0) {
+        stringRackReference[i] = "deleted";
       } else {
         stringRackReference[i] = "NULL";
       }
