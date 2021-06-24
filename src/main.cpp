@@ -28,6 +28,7 @@ dPin  Label   Function
 
 String stringRackReference[N];
 String stringRackSensor[N];
+int rackDeleted[N];
 
 #if N >= 1
 SoftwareSerial serialRack0(18, 19);
@@ -68,6 +69,7 @@ void setup() {
   Serial.begin(9600);
   for (int i = 0; i < N; i++) {
     serialRack(i).begin(9600);
+    rackDeleted[i] = 0;
   }
   pinMode(WIFILED, OUTPUT);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -99,6 +101,12 @@ void setup() {
 }
 
 void mainLoop(void* pvParameters) {
+  for (int i = 0; i < N; i++)
+  {
+    serialRack(i).print("deleted\n");
+    rackDeleted[i] = 1;
+  }
+  
   while (1) {
     Serial.println("---------");
     readFirebase();
@@ -145,6 +153,7 @@ void readFirebase() {
 void putReferenceData() {
   String tmp;
   for (int i = 0; i < N; i++) {
+    if(rackDeleted[i]) continue;
     if (stringRackReference[i] != "NULL") {
       Serial.println(stringRackReference[i]);
       serialRack(i).print(stringRackReference[i]);
@@ -169,6 +178,7 @@ void putReferenceData() {
 void getSensorReadings() {
   Serial.println("Getting Sensor Readings:");
   for (int i = 0; i < N; i++) {
+    if(rackDeleted[i]) continue;
     if (serialRack(i).available()) {
       stringRackSensor[i] = serialRack(i).readStringUntil('\n');
       Serial.println(stringRackSensor[i]);
@@ -181,6 +191,7 @@ void updateFirebase() {
   Serial.println("Updating Firebase");
   if (WiFi.status() != WL_CONNECTED) return;
   for (int i = 0; i < N; i++) {
+    if(rackDeleted[i]) continue;
     tmp = new FirebaseJson;
     tmp->setJsonData(stringRackSensor[i]);
     Firebase.setJSON(database, "/Sensor/Rack: " + String(i + 1), *tmp);
