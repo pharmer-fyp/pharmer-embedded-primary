@@ -22,7 +22,7 @@ dPin  Label   Function
 33    D33     r3tx
 */
 
-#define N 2
+#define N 1
 #define MAX_DEFINED_N 5
 #define WIFILED 2
 
@@ -80,27 +80,27 @@ void setup() {
   startFirebase();
   delay(500);
 
-  xTaskCreatePinnedToCore(
-      statusLoop,     /* Task function. */
-      "statusLoop_H", /* name of task. */
-      10000,          /* Stack size of task */
-      NULL,           /* parameter of the task */
-      1,              /* priority of the task */
-      &statusLoop_H,  /* Task handle to keep track of created task */
-      1);             /* pin task to core 1 */
+  xTaskCreatePinnedToCore(statusLoop,     /* Task function. */
+                          "statusLoop_H", /* name of task. */
+                          10000,          /* Stack size of task */
+                          NULL,           /* parameter of the task */
+                          1,              /* priority of the task */
+                          &statusLoop_H,  /* Task handle to keep track of created task */
+                          1);             /* pin task to core 1 */
   delay(1500);
-  xTaskCreatePinnedToCore(
-      mainLoop,    /* Task function. */
-      "mainLoop",  /* name of task. */
-      10000,       /* Stack size of task */
-      NULL,        /* parameter of the task */
-      1,           /* priority of the task */
-      &mainLoop_H, /* Task handle to keep track of created task */
-      0);          /* pin task to core 0 */
+  xTaskCreatePinnedToCore(mainLoop,    /* Task function. */
+                          "mainLoop",  /* name of task. */
+                          10000,       /* Stack size of task */
+                          NULL,        /* parameter of the task */
+                          1,           /* priority of the task */
+                          &mainLoop_H, /* Task handle to keep track of created task */
+                          0            /* pin task to core 0 */
+  );
 }
 
 void mainLoop(void* pvParameters) {
   while (1) {
+    Serial.println("---------");
     readFirebase();
     putReferenceData();
     getSensorReadings();
@@ -129,11 +129,10 @@ void readFirebase() {
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
-      if( stringRackReference[i].indexOf("newval") >= 0){
-        Firebase.setString(database, "/Reference/Rack: " + String(i + 1) + "/isNew","oldval");
-      } else if (stringRackReference[i].indexOf("deleted") >= 0) {
+      if (stringRackReference[i].indexOf("deleted") >= 0) {
         stringRackReference[i] = "deleted";
-      } else {
+      }
+      if (stringRackReference[i].indexOf("oldval") >= 0){
         stringRackReference[i] = "NULL";
       }
     } else {
@@ -144,23 +143,42 @@ void readFirebase() {
 }
 
 void putReferenceData() {
+  String tmp;
   for (int i = 0; i < N; i++) {
     if (stringRackReference[i] != "NULL") {
+      Serial.println(stringRackReference[i]);
       serialRack(i).print(stringRackReference[i]);
+      serialRack(i).print("\n");
+      serialRack(i).flush();
+      delay(2000);
+      while (!serialRack(i).available()) {
+        Serial.print('.');
+        delay(1000);
+      }
+      tmp = serialRack(i).readStringUntil('\n');
+      serialRack(i).flush();
+      if (tmp.indexOf('s') >= 0) {
+        Firebase.setString(database, "/Reference/Rack: " + String(i + 1) + "/isNew", "oldval");
+        stringRackReference[i] = "NULL";
+      }
+      serialRack(i).flush();
     }
   }
 }
 
 void getSensorReadings() {
+  Serial.println("Getting Sensor Readings:");
   for (int i = 0; i < N; i++) {
     if (serialRack(i).available()) {
-      stringRackSensor[i] = serialRack(i).readString();
+      stringRackSensor[i] = serialRack(i).readStringUntil('\n');
+      Serial.println(stringRackSensor[i]);
     }
   }
 }
 
 void updateFirebase() {
   FirebaseJson* tmp;
+  Serial.println("Updating Firebase");
   if (WiFi.status() != WL_CONNECTED) return;
   for (int i = 0; i < N; i++) {
     tmp = new FirebaseJson;
