@@ -22,7 +22,7 @@ dPin  Label   Function
 33    D33     r3tx
 */
 
-#define N 1
+#define N 2
 #define MAX_DEFINED_N 5
 #define WIFILED 2
 
