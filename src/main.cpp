@@ -22,7 +22,7 @@ dPin  Label   Function
 33    D33     r3tx
 */
 
-#define N 2
+#define N 1
 #define MAX_DEFINED_N 5
 #define WIFILED 2
 
@@ -134,15 +134,19 @@ void statusLoop(void* pvParameters) {
 void loop() {}
 
 void readFirebase() {
+  Serial.println("Reading Firebase");
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
+      Serial.println(stringRackReference[i]);
       if (stringRackReference[i].indexOf("deleted") >= 0) {
         stringRackReference[i] = "deleted";
+        rackDeleted[i] = 1;
       }
       if (stringRackReference[i].indexOf("oldval") >= 0){
         stringRackReference[i] = "NULL";
       }
+      rackDeleted[i] = 0;
     } else {
       stringRackReference[i] = "NULL";
     }
