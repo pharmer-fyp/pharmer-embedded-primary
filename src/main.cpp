@@ -138,6 +138,7 @@ void readFirebase() {
   for (int i = 0; i < N; i++) {
     if (Firebase.getJSON(database, "/Reference/Rack: " + String(i + 1))) {
       stringRackReference[i] = database.jsonString();
+      rackDeleted[i] = 0;
       Serial.println(stringRackReference[i]);
       if (stringRackReference[i].indexOf("deleted") >= 0) {
         stringRackReference[i] = "deleted";
@@ -146,7 +147,6 @@ void readFirebase() {
       if (stringRackReference[i].indexOf("oldval") >= 0){
         stringRackReference[i] = "NULL";
       }
-      rackDeleted[i] = 0;
     } else {
       stringRackReference[i] = "NULL";
     }
